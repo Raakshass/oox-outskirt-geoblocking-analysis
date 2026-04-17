@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.py
+*after_collab*
+*after_google*
+*outputs*
+Copy_of_*
+extract_*
+generate_*
+notebook_outputs*
+v2_out*
