@@ -1,0 +1,656 @@
+﻿Total cells: 61
+================================================================================
+
+--- CELL 0 [markdown] ---
+Src: # COOX ù Outskirt Booking Analysis & Geo-Blocking Strategy |  | **Problem:** COOX receives bookings from locations outside serviceable
+
+--- CELL 1 [markdown] ---
+Src: --- | ## 1. Setup & Data Loading
+
+--- CELL 2 [code] ---
+Src: !pip install geopy -q
+  [NO OUTPUT]
+
+--- CELL 3 [code] ---
+Src: import pandas as pd | import numpy as np | import matplotlib.pyplot as plt | import seaborn as sns | import warnings | warnings.filterwarnin
+  [NO OUTPUT]
+
+--- CELL 4 [code] ---
+Src: df = pd.read_csv('IIT Roorkee __ COOX - Raw Data.csv') | print(f'Dataset Shape: {df.shape}') | print(f'Columns: {list(df.columns)}') | d
+  OUT[0] stream:
+Dataset Shape: (557, 10)
+Columns: ['Booking ID', 'Payment Status', 'Address ID', 'Address Type', 'Area', 'City', 'State', 'Country', 'Lat', 'Long']
+
+  OUT[1] result:
+   Booking ID Payment Status  Address ID Address Type  \
+0      509103  refunded_full      152622         Home   
+1      700991  refunded_full      208569    Farmhouse   
+2      717282  refunded_full      216864       Office   
+3      717285  refunded_full      216864       Office   
+4      717290  refunded_full      216864       Office   
+
+                                                Area       City        State  \
+0                byalalu village chunchanaguppe post  Bengaluru    Karnataka   
+1                                  Outside Hyderabad  Hyderabad    Telangana   
+2  Aawasari Phata Manchar, Taluka Ambegaon, Mahar...       Pune  Maharashtra   
+3  Aawasari Phata Manchar, Taluka Amb
+
+--- CELL 5 [markdown] ---
+Src: --- | ## 2. Data Cleaning & Preprocessing
+
+--- CELL 6 [code] ---
+Src: # Standardize column names | df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_') | print('Cleaned columns:', list(df
+  OUT[0] stream:
+Cleaned columns: ['booking_id', 'payment_status', 'address_id', 'address_type', 'area', 'city', 'state', 'country', 'lat', 'long']
+
+
+--- CELL 7 [code] ---
+Src: # Missing values check | print('Missing Values:') | print(df.isnull().sum()) | print(f'\nRows with missing coordinates: {df[["lat","long
+  OUT[0] stream:
+Missing Values:
+booking_id         0
+payment_status     0
+address_id         0
+address_type       6
+area               9
+city               0
+state              0
+country            0
+lat               11
+long              11
+dtype: int64
+
+Rows with missing coordinates: 11
+
+
+--- CELL 8 [code] ---
+Src: # Convert coordinate columns and drop invalid rows | df['lat'] = pd.to_numeric(df['lat'], errors='coerce') | df['long'] = pd.to_numeri
+  OUT[0] stream:
+Dropped 11 rows with missing coordinates
+Working dataset: 546 bookings
+
+
+--- CELL 9 [code] ---
+Src: # Duplicate check | print(f'Duplicate rows: {df.duplicated().sum()}') | print(f'Duplicate Booking IDs: {df["booking_id"].duplicated().
+  OUT[0] stream:
+Duplicate rows: 0
+Duplicate Booking IDs: 0
+
+
+--- CELL 10 [markdown] ---
+Src: --- | ## 3. Exploratory Data Analysis |  | Key question: Where are these non-serviceable bookings concentrated ù by city, area, and addr
+
+--- CELL 11 [code] ---
+Src: # Confirm: all bookings are refunded | print('Payment Status Distribution:') | print(df['payment_status'].value_counts()) | print(f'\nCo
+  OUT[0] stream:
+Payment Status Distribution:
+payment_status
+refunded_full    546
+Name: count, dtype: int64
+
+Confirmed: 100% of bookings are "refunded_full" ù entire dataset represents non-serviceable outskirt orders.
+
+
+--- CELL 12 [code] ---
+Src: # City-wise outskirt booking breakdown | city_counts = df['city'].value_counts() | city_pct = df['city'].value_counts(normalize=True) 
+  OUT[0] stream:
+City-wise Outskirt Bookings:
+
+  OUT[1] result:
+                            Booking Count  Percentage (%)
+city                                                     
+Bengaluru                             143           26.19
+Pune                                   94           17.22
+Hyderabad                              68           12.45
+Chennai                                66           12.09
+Ahmedabad                              38            6.96
+Jaipur                                 25            4.58
+Kolkata                                18            3.30
+Surat                                  15            2.75
+Navi Mumbai                            14            2.56
+Indore                                 11            2.01
+Chan
+
+--- CELL 13 [code] ---
+Src: # City-wise distribution visualization | fig, axes = plt.subplots(1, 2, figsize=(16, 6)) |  | colors = sns.color_palette('Reds_r', n_col
+  OUT[0] IMAGE
+
+--- CELL 14 [code] ---
+Src: # State-wise distribution | print('State-wise Distribution:') | print(df['state'].value_counts())
+  OUT[0] stream:
+State-wise Distribution:
+state
+Karnataka         143
+Maharashtra       124
+Telangana          68
+Tamil Nadu         66
+Gujarat            56
+Rajasthan          25
+West Bengal        18
+Punjab             12
+Madhya Pradesh     11
+Uttar Pradesh       9
+Haryana             6
+Goa                 4
+Chandigarh          2
+Delhi               2
+Name: count, dtype: int64
+
+
+--- CELL 15 [code] ---
+Src: # Address type breakdown | addr_type = df['address_type'].value_counts() | addr_pct = df['address_type'].value_counts(normalize=True) 
+  OUT[0] stream:
+Address Type Distribution:
+
+  OUT[1] result:
+              Count  Percentage (%)
+address_type                       
+Home            441           80.77
+Farmhouse        75           13.74
+Other            11            2.01
+Resort           10            1.83
+Office            9            1.65
+
+--- CELL 16 [code] ---
+Src: # Cross-tabulation: City x Address Type | ct = pd.crosstab(df['city'], df['address_type']) |  | plt.figure(figsize=(10, 8)) | sns.heatmap(
+  OUT[0] IMAGE
+
+--- CELL 17 [code] ---
+Src: # Top 20 problem areas by booking count | top_areas = df['area'].value_counts().head(20) | print('Top 20 Problem Areas:') | print(top_ar
+  OUT[0] stream:
+Top 20 Problem Areas:
+area
+Pal Tp 16                                               8
+SUPERCITY GLORY, Supercity, Gujarat 382722              7
+Maraimalai Nagar                                        4
+Brigade El Dorado, Aerospace Park                       4
+Beside lane Mittal dairy                                4
+Bicholi Mardana, Ambamoliya-Bicholi Hapsi Rd            3
+Harapanahalli Jigani Hobli, Anekal, Taluk               3
+Weaver Colony Anekal, Karnataka 562106                  3
+Manghar, Panvel                                         3
+Aawasari Phata Manchar, Taluka Ambegaon, Maharashtra    3
+Moinabad                                                3
+Reddiar Garden, Kamaraj Nagar, Avad
+
+--- CELL 18 [code] ---
+Src: # Repeat offender addresses | repeat_addresses = df['address_id'].value_counts() | repeat_addresses = repeat_addresses[repeat_addresse
+  OUT[0] stream:
+Addresses with multiple outskirt bookings: 68
+Total bookings from repeat addresses: 170
+
+Top 10 repeat addresses:
+  Address ID 471022: 8 bookings -- Pal Tp 16, Surat
+  Address ID 610514: 7 bookings -- SUPERCITY GLORY, Supercity, Gujarat 382722, Ahmedabad
+  Address ID 409419: 4 bookings -- Beside lane Mittal dairy, Pune
+  Address ID 612072: 4 bookings -- Brigade El Dorado, Aerospace Park, Bengaluru
+  Address ID 573580: 3 bookings -- Guru Nanak Colony Rd, Guru Nanak Colony, Chandigarh
+  Address ID 641962: 3 bookings -- Reddiar Garden, Kamaraj Nagar, Avadi,, Chennai
+  Address ID 417624: 3 bookings -- Mambakkam - Medavakkam Main Rd,, Chennai
+  Address ID 545262: 3 bookings -- Bommasandra Industr
+
+--- CELL 19 [markdown] ---
+Src: ### EDA Key Findings |  | 1. **100% of the dataset is refunded bookings** ù confirming these are all non-serviceable outskirt orders | 2
+
+--- CELL 20 [markdown] ---
+Src: ### 3.1 Distance from City Center Analysis |  | To quantify how far outside the serviceable zone each booking falls, we dynamically re
+
+--- CELL 21 [code] ---
+Src: # Resolve city center coordinates dynamically via Nominatim | from geopy.geocoders import Nominatim | from geopy.extra.rate_limiter im
+  OUT[0] stream:
+Resolving city center coordinates...
+  Bengaluru: (12.9768, 77.5901)
+  Hyderabad: (17.3606, 78.4741)
+  Pune: (18.5214, 73.8545)
+  Jaipur: (26.9155, 75.8190)
+  Ahmedabad: (23.0215, 72.5801)
+  Indore: (22.7204, 75.8682)
+  Thane: (19.3654, 73.3685)
+  Gurugram: (28.4646, 77.0299)
+  Sahibzada Ajit Singh Nagar: (30.7041, 76.7177)
+  Mumbai: (19.0550, 72.8692)
+  Chennai: (13.0837, 80.2702)
+  Surat: (21.2095, 72.8317)
+  Navi Mumbai: (19.0308, 73.0199)
+  Ulhasnagar: (19.2236, 73.1672)
+  Zirakpur: (30.6557, 76.8201)
+  Vadodara: (22.2973, 73.1943)
+  Kolkata: (22.5726, 88.3639)
+  Chandigarh: (30.7334, 76.7797)
+  Panaji: (15.4990, 73.8282)
+  Greater Noida: (28.4671, 77.5138)
+  Lucknow: (26.8381, 80.9346)
+
+
+--- CELL 22 [code] ---
+Src: # Compute haversine distance from city center for each booking | def haversine_km(lat1, lon1, lat2, lon2): |     R = 6371.0 |     dlat =
+  OUT[0] stream:
+Distance from City Center (km):
+count    546.00
+mean      23.63
+std       12.78
+min        1.34
+25%       16.82
+50%       21.08
+75%       26.69
+max      179.30
+Name: dist_from_center_km, dtype: float64
+
+Median distance: 21.1 km
+Max distance: 179.3 km
+
+
+--- CELL 23 [code] ---
+Src: # Distance distribution ù overall and per city | fig, axes = plt.subplots(1, 2, figsize=(16, 6)) |  | # Overall distribution | axes[0].his
+  OUT[0] IMAGE
+
+--- CELL 24 [code] ---
+Src: # Recommended geo-fence radius per city | print('Recommended Geo-Fence Radius per City:') | print('=' * 70) | print(f'{"City":<20} {"Boo
+  OUT[0] stream:
+Recommended Geo-Fence Radius per City:
+======================================================================
+City                 Bookings   Min (km)   Median (km)  P25 (km)   Suggested Radius
+----------------------------------------------------------------------
+Bengaluru            143        10.3       22.1         19.3       19 km
+Pune                 94         6.5        19.5         15.2       15 km
+Hyderabad            68         15.4       26.2         22.0       22 km
+Chennai              66         13.2       26.5         21.4       21 km
+Ahmedabad            38         10.1       15.8         14.4       14 km
+Jaipur               25         12.5       20.8         16.4       16 
+
+--- CELL 25 [markdown] ---
+Src: --- | ## 4. Geospatial Visualization
+
+--- CELL 26 [code] ---
+Src: import folium | from folium.plugins import HeatMap
+  [NO OUTPUT]
+
+--- CELL 27 [code] ---
+Src: # Scatter map of all outskirt booking locations | m = folium.Map( |     location=[df['lat'].mean(), df['long'].mean()], |     zoom_start
+  OUT[0] result:
+<folium.folium.Map at 0x7cd3f5a83d10>
+
+--- CELL 28 [code] ---
+Src: # Heatmap ù booking density visualization | m_heat = folium.Map( |     location=[df['lat'].mean(), df['long'].mean()], |     zoom_start=
+  OUT[0] result:
+<folium.folium.Map at 0x7cd3fab58f80>
+
+--- CELL 29 [markdown] ---
+Src: ### 4.1 City-Level Heatmaps |  | India-wide maps obscure local patterns. The following maps zoom into the top 3 problem cities to reve
+
+--- CELL 30 [code] ---
+Src: # City-level zoomed heatmaps for top 3 cities | top_3_cities = city_counts.head(3).index.tolist() |  | for city_name in top_3_cities: |   
+  OUT[0] stream:
+--- Bengaluru (143 outskirt bookings) ---
+
+  OUT[1] HTML (196383 chars)
+  OUT[2] stream:
+--- Pune (94 outskirt bookings) ---
+
+  OUT[3] HTML (131017 chars)
+  OUT[4] stream:
+--- Hyderabad (68 outskirt bookings) ---
+
+  OUT[5] HTML (95614 chars)
+
+--- CELL 31 [markdown] ---
+Src: --- | ## 5. Cluster Identification (DBSCAN) |  | **Why DBSCAN?** | - Does not require pre-specifying the number of clusters (unlike K-Mean
+
+--- CELL 32 [code] ---
+Src: from sklearn.cluster import DBSCAN | from sklearn.neighbors import NearestNeighbors | from sklearn.metrics import silhouette_score
+  [NO OUTPUT]
+
+--- CELL 33 [code] ---
+Src: # k-Distance plot for optimal eps selection | coords = df[['lat', 'long']].to_numpy() | kms_per_radian = 6371.0088 |  | k = 5 | neighbors = 
+  OUT[0] IMAGE
+  OUT[1] stream:
+Selected eps = 2 km (based on elbow in k-distance plot)
+Selected min_samples = 5 (standard minimum for geographic clustering)
+
+
+--- CELL 34 [code] ---
+Src: # Run DBSCAN | eps_km = 2.0 | epsilon = eps_km / kms_per_radian |  | db = DBSCAN(eps=epsilon, min_samples=k, metric='haversine') | df['clust
+  OUT[0] stream:
+Clusters found: 13
+Noise points (isolated bookings): 451
+Clustered bookings: 95 / 546 (17.4%)
+
+
+--- CELL 35 [code] ---
+Src: # Cluster quality ù Silhouette Score | df_clustered = df[df['cluster'] != -1] |  | if len(df_clustered['cluster'].unique()) > 1: |     sil
+  OUT[0] stream:
+Silhouette Score: 0.940
+Interpretation: Good cluster separation
+
+
+--- CELL 36 [code] ---
+Src: # Cluster scatter plot | plt.figure(figsize=(14, 8)) |  | noise = df[df['cluster'] == -1] | plt.scatter(noise['long'], noise['lat'], c='li
+  OUT[0] IMAGE
+
+--- CELL 37 [code] ---
+Src: # Cluster-only heatmap ù density within identified hotspot zones | m_cluster_heat = folium.Map( |     location=[df['lat'].mean(), df['
+  OUT[0] stream:
+Cluster-Only Heatmap (noise excluded):
+
+  OUT[1] result:
+<folium.folium.Map at 0x7cd3f463cdd0>
+
+--- CELL 38 [code] ---
+Src: # Cluster summary table | cluster_summary = df_clustered.groupby('cluster').agg( |     booking_count=('booking_id', 'count'), |     mean
+  OUT[0] stream:
+Cluster Summary:
+
+  OUT[1] result:
+         booking_count   mean_lat  mean_long               cities  \
+cluster                                                             
+2                   13  18.666380  73.725871                 Pune   
+4                   10  12.872870  77.770582            Bengaluru   
+3                   10  12.852611  80.241559              Chennai   
+8                    8  21.160659  72.652016                Surat   
+6                    8  13.065079  77.748390            Bengaluru   
+10                   8  23.096730  72.465761            Ahmedabad   
+0                    7  13.141730  77.676408            Bengaluru   
+5                    6  18.623414  73.918063                 Pune   
+1         
+
+--- CELL 39 [code] ---
+Src: # Tag as Outskirt Hotspots | hotspot_threshold = 5 | hotspot_clusters = cluster_summary[cluster_summary['booking_count'] >= hotspot_th
+  OUT[0] stream:
+OUTSKIRT HOTSPOTS (>=5 bookings): 13 clusters
+         booking_count               cities  \
+cluster                                       
+2                   13                 Pune   
+4                   10            Bengaluru   
+3                   10              Chennai   
+8                    8                Surat   
+6                    8            Bengaluru   
+10                   8            Ahmedabad   
+0                    7            Bengaluru   
+5                    6                 Pune   
+1                    5            Ahmedabad   
+7                    5            Bengaluru   
+9                    5            Bengaluru   
+11                   5              Kolkata
+
+--- CELL 40 [markdown] ---
+Src: ### 5.2 City-Level Adaptive DBSCAN |  | India-wide DBSCAN with eps=2km clusters only a fraction of bookings because points are spread 
+
+--- CELL 41 [code] ---
+Src: # City-Level DBSCAN with adaptive eps | city_cluster_results = [] | df['city_cluster'] = -1 | global_cluster_id = 0 |  | for city_name in df
+  OUT[0] stream:
+City-Level DBSCAN Results:
+  Total clusters: 59
+  Clustered: 414 / 546 (75.8%)
+  vs India-wide: 95 / 546 (17.4%)
+
+
+  OUT[1] result:
+           city  eps_km  clusters  clustered  total   pct
+0     Bengaluru     4.1        14        113    143  79.0
+2          Pune     4.0         7         70     94  74.5
+1     Hyderabad     7.4         7         54     68  79.4
+9       Chennai     3.6         9         50     66  75.8
+4     Ahmedabad     4.1         3         31     38  81.6
+3        Jaipur     8.7         3         21     25  84.0
+12      Kolkata     8.9         3         16     18  88.9
+11  Navi Mumbai     4.6         3         12     14  85.7
+10        Surat    15.0         1         10     15  66.7
+13   Chandigarh     5.9         2          8      9  88.9
+5        Indore    13.2         2          8     11  72.7
+6   
+
+--- CELL 42 [markdown] ---
+Src: ### 5.1 City-Level Cluster Maps |  | Zoomed views of clusters within top problem cities. Each cluster zone is highlighted with a 3km r
+
+--- CELL 43 [code] ---
+Src: # City-level cluster maps for top 3 cities | top_3_cities = city_counts.head(3).index.tolist() |  | for city_name in top_3_cities: |     c
+  OUT[0] stream:
+--- Bengaluru: 143 bookings | 35 clustered | 108 isolated ---
+
+  OUT[1] HTML (196077 chars)
+  OUT[2] stream:
+--- Pune: 94 bookings | 19 clustered | 75 isolated ---
+
+  OUT[3] HTML (128885 chars)
+  OUT[4] stream:
+--- Hyderabad: 68 bookings | 0 clustered | 68 isolated ---
+
+  OUT[5] HTML (91992 chars)
+
+--- CELL 44 [markdown] ---
+Src: --- | ## 6. Pincode Extraction |  | **Method:** Two-pronged approach: | 1. Regex extraction of 6-digit Indian pincodes from address text | 2
+
+--- CELL 45 [code] ---
+Src: # Method 1: Extract pincodes from address field using regex | df['pincode_from_address'] = df['area'].astype(str).str.extract(r'(\d{
+  OUT[0] stream:
+Pincodes found in address text: 94 / 546
+
+Sample pincodes extracted from address field:
+                                                  area       city  \
+18                                    Kunigal - 572130  Bengaluru   
+19                                    Kunigal - 572130  Bengaluru   
+24   Villa No 3, Ashford by Stellar Stays, Mannat H...       Pune   
+40     Borivali Tarf Sonale, Maharashtra 421302, India     Mumbai   
+64                 Near Kasarsai Dam, Chandkhed 410506       Pune   
+69                                  bengaluru - 560089  Bengaluru   
+75                         Bengaluru, Karnataka 562130  Bengaluru   
+82   JaipurPlot no 60/61, Venkteshwar Nagar, Delhi ...     J
+
+--- CELL 46 [code] ---
+Src: # Method 2: Reverse geocoding for cluster centroids | from geopy.geocoders import Nominatim | from geopy.extra.rate_limiter import Rat
+  OUT[0] stream:
+Reverse geocoding cluster centroids...
+
+  Cluster 2: Pincode 654321 -- N/A, Pune District
+  Cluster 4: Pincode 562125 -- Yamare, Bengaluru Urban
+  Cluster 3: Pincode 600130 -- Zone 15 Sholinganallur, Chengalpattu
+  Cluster 8: Pincode 394270 -- N/A, Surat
+  Cluster 6: Pincode 560049 -- Bommenahalli, Bengaluru Urban
+  Cluster 10: Pincode 382722 -- Santej, Gandhinagar
+  Cluster 0: Pincode 562149 -- Bagaluru, Bengaluru Urban
+  Cluster 5: Pincode 411018 -- N/A, Pune District
+  Cluster 1: Pincode 382210 -- N/A, Ahmedabad
+  Cluster 7: Pincode 560064 -- Raja Kempegowda Ward, Bengaluru Urban
+  Cluster 9: Pincode 560064 -- Vishvanathapura, Bengaluru Urban
+  Cluster 11: Pincode 700135 -- N/A, North 24 
+  OUT[1] result:
+    cluster pincode                locality           district        state  \
+0         2  654321                     N/A      Pune District  Maharashtra   
+1         4  562125                  Yamare    Bengaluru Urban    Karnataka   
+2         3  600130  Zone 15 Sholinganallur       Chengalpattu   Tamil Nadu   
+3         8  394270                     N/A              Surat      Gujarat   
+4         6  560049            Bommenahalli    Bengaluru Urban    Karnataka   
+5        10  382722                  Santej        Gandhinagar      Gujarat   
+6         0  562149                Bagaluru    Bengaluru Urban    Karnataka   
+7         5  411018                     N/A      Pune District  Maha
+
+--- CELL 47 [code] ---
+Src: # Pincode verification with auto-fallback correction | state_pin_prefix = { |     'Karnataka': ['56'], 'Maharashtra': ['40', '41', '42
+  OUT[0] stream:
+Pincode Verification & Auto-Correction:
+----------------------------------------------------------------------
+  Cluster 2: Pin 412101 | Maharashtra | CORRECTED 654321 -> 412101 (from address data)
+  Cluster 4: Pin 562125 | Karnataka | OK
+  Cluster 3: Pin 600130 | Tamil Nadu | OK
+  Cluster 8: Pin 394270 | Gujarat | OK
+  Cluster 6: Pin 560049 | Karnataka | OK
+  Cluster 10: Pin 382722 | Gujarat | OK
+  Cluster 0: Pin 562149 | Karnataka | OK
+  Cluster 5: Pin 411018 | Maharashtra | OK
+  Cluster 1: Pin 382210 | Gujarat | OK
+  Cluster 7: Pin 560064 | Karnataka | OK
+  Cluster 9: Pin 560064 | Karnataka | OK
+  Cluster 11: Pin 700135 | West Bengal | OK
+  Cluster 12: Pin 410206 | Maharashtra | OK
+
+Verif
+
+--- CELL 48 [code] ---
+Src: # Detailed pincodes for individual locations within hotspot clusters | top_cluster_ids = hotspot_clusters.index.tolist() | top_cluster
+  OUT[0] stream:
+Reverse geocoding 66 unique locations in hotspot clusters...
+
+Individual Location Pincodes (Hotspot Clusters):
+
+  OUT[1] result:
+    cluster                                       area         city pincode  \
+0         0                          Huvinayakanahalli    Bengaluru  562149   
+1         1                                 Moti devti    Ahmedabad  382210   
+2        12                                 New Panvel  Navi Mumbai  401206   
+3         2  Shinde Vasti ,Ravet, Pune ,Maharashtra  ,         Pune  654321   
+4         3    Kanathur Reddykuppam, Tamil Nadu 603112      Chennai  600130   
+..      ...                                        ...          ...     ...   
+61        5                   Pride world city, 412105         Pune  411018   
+62       11                  Baghu, Newtown, Sikharpur      Kolkata 
+
+--- CELL 49 [markdown] ---
+Src: --- | ## 7. Geo-Blocking Recommendation |  | **Final Deliverable:** A prioritized blocking strategy covering both clustered hotspots and
+
+--- CELL 50 [code] ---
+Src: # Geo-Blocking Recommendation Table | blocking_recommendation = pincode_df.copy() |  | def assign_priority(count): |     if count >= 10: |  
+  OUT[0] stream:
+================================================================================
+GEO-BLOCKING RECOMMENDATION ù CLUSTERED HOTSPOTS
+================================================================================
+
+
+  OUT[1] result:
+    cluster pincode                locality           district        state  \
+0         2  412101                     N/A      Pune District  Maharashtra   
+1         4  562125                  Yamare    Bengaluru Urban    Karnataka   
+2         3  600130  Zone 15 Sholinganallur       Chengalpattu   Tamil Nadu   
+3         8  394270                     N/A              Surat      Gujarat   
+4         6  560049            Bommenahalli    Bengaluru Urban    Karnataka   
+5        10  382722                  Santej        Gandhinagar      Gujarat   
+6         0  562149                Bagaluru    Bengaluru Urban    Karnataka   
+7         5  411018                     N/A      Pune District  Maha
+
+--- CELL 51 [markdown] ---
+Src: ### 7.1 Isolated Non-Serviceable Locations |  | Not all non-serviceable bookings form clusters. A significant portion are geographical
+
+--- CELL 52 [code] ---
+Src: # Isolated (noise) bookings ù pincode-level blocking recommendation | df_noise = df[df['cluster'] == -1].copy() |  | # Use pincodes alre
+  OUT[0] stream:
+Isolated (non-clustered) bookings: 451
+  - With pincodes from address: 73
+  - Without pincode (need reverse geocoding): 378
+
+Isolated Bookings by City:
+
+  OUT[1] result:
+                            isolated_bookings  unique_areas  \
+city                                                          
+Bengaluru                                 108            87   
+Pune                                       75            60   
+Hyderabad                                  68            58   
+Chennai                                    56            44   
+Ahmedabad                                  25            18   
+Jaipur                                     25            22   
+Kolkata                                    13            13   
+Indore                                     11             7   
+Navi Mumbai                                10             8   
+Chandig
+
+--- CELL 53 [code] ---
+Src: # Pincode-level blocking list for isolated bookings (where pincode is available) | if len(noise_with_pins) > 0: |     isolated_pin_cou
+  OUT[0] stream:
+Isolated Locations ù Pincode Blocking List:
+                      bookings         city  \
+pincode_from_address                          
+412115                       4         Pune   
+562106                       3    Bengaluru   
+412205                       2         Pune   
+412301                       2         Pune   
+572130                       2    Bengaluru   
+562157                       2    Bengaluru   
+501504                       2    Hyderabad   
+500043                       2    Hyderabad   
+560087                       2    Bengaluru   
+455001                       2       Indore   
+382330                       2    Ahmedabad   
+394180                       1        Surat  
+
+--- CELL 54 [code] ---
+Src: # Comprehensive impact analysis | clustered_bookings = len(df_clustered) | isolated_bookings = len(df_noise) | total_bookings = len(df) | 
+  OUT[0] stream:
+================================================================================
+IMPACT ANALYSIS
+================================================================================
+
+Total non-serviceable bookings analyzed: 546
+
+Strategy 1: Zone-Based Blocking (Cluster Hotspots)
+  Clusters identified: 13
+  Bookings covered: 95 (17.4%)
+  Cluster pincodes extracted: 13
+
+Strategy 2: Pincode-Level Blocking (Address-Based)
+  Pincodes extracted from address text: 67 unique pincodes
+  Bookings covered: 94 (17.2%)
+
+Combined Coverage:
+  Total unique bookings addressable: 168 / 546 (30.8%)
+  Remaining (require manual address review): 378
+
+
+--- CELL 55 [code] ---
+Src: # Financial impact estimation | avg_order_value = 4000  # INR (conservative for chef-at-home services) | processing_cost = 150   # INR
+  OUT[0] stream:
+======================================================================
+ESTIMATED FINANCIAL IMPACT
+======================================================================
+
+Total non-serviceable bookings: 546
+Revenue at risk: INR 2,184,000 (@ INR 4,000/booking)
+Processing waste: INR 81,900 (@ INR 150/booking)
+Total estimated impact: INR 2,265,900
+
+Projected savings (80% prevention rate):
+  Annual: INR 1,812,720
+  Monthly: INR 151,060
+
+
+--- CELL 56 [code] ---
+Src: # Comprehensive blocking list ù single actionable deliverable | cluster_block = blocking_recommendation[['cluster', 'pincode', 'loca
+  OUT[0] stream:
+================================================================================
+COMPREHENSIVE GEO-BLOCKING LIST
+================================================================================
+Entries: 72 (13 clusters + 59 isolated pincodes)
+Bookings covered: 168
+
+
+  OUT[1] result:
+     cluster pincode                                           locality  \
+0          2  412101                                                N/A   
+1          4  562125                                             Yamare   
+2          3  600130                             Zone 15 Sholinganallur   
+3          8  394270                                                N/A   
+4          6  560049                                       Bommenahalli   
+..       ...     ...                                                ...   
+67  Isolated  635114                      Madagondapalli, Hosur, 635114   
+68  Isolated  700103          E M Bypass Road, Kamalgazi Kolkata 700103   
+69  Isolated  712245  Rag
+
+--- CELL 57 [code] ---
+Src: # Final map: Blocking zones visualization | m_final = folium.Map( |     location=[df['lat'].mean(), df['long'].mean()], |     zoom_start
+  OUT[0] result:
+<folium.folium.Map at 0x7cd3ef3de690>
+
+--- CELL 58 [code] ---
+Src: # Save all maps as downloadable HTML files | import os | os.makedirs('maps', exist_ok=True) |  | m.save('maps/01_scatter_map.html') | m_heat
+  OUT[0] stream:
+Saved maps:
+  maps/01_scatter_map.html
+  maps/02_density_heatmap.html
+  maps/03_cluster_heatmap.html
+  maps/04_blocking_zones.html
+
+Download from the Colab file panel on the left.
+
+
+--- CELL 59 [markdown] ---
+Src: --- | ## 8. Limitations & Future Work |  | ### Limitations | - **No temporal data:** The dataset lacks timestamps, so we cannot identify t
+
+--- CELL 60 [markdown] ---
+Src: --- | ## 9. Executive Summary |  | ### Key Findings | 1. All 557 bookings in the dataset are fully refunded, confirming they represent non
